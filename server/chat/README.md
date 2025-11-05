@@ -1,6 +1,8 @@
 # Chat
 
 **TODO: Add description**
+## Folder
+- client: client api + proxy server
 
 ## Installation
 
