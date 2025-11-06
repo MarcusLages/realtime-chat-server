@@ -10,12 +10,12 @@ defmodule Chat.Application do
     children = [
       # Starts a worker by calling: Chat.Worker.start_link(arg)
       # {Chat.Worker, arg}
-      {Registry, name: Chat.Registry, keys: :unique},
-      Chat.ServerSupervisor
+      {Chat.Server, name: {:global, Chat.Server}}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
+    :ets.new(Chat.Store, [:named_table, :public])
     opts = [strategy: :one_for_one, name: Chat.Supervisor]
     Supervisor.start_link(children, opts)
   end
