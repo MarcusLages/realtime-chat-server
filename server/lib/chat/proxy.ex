@@ -51,6 +51,7 @@ defmodule Chat.Proxy.Worker do
   Module used to handle a socket connection with an accept socket so it can use
   the functionalities of Chat.Server.
   Should be created by Chat.Proxy.
+  It's state is a tuple of {socket, Map: group_name => List(nicks)}
   """
   require Logger
   use GenServer
@@ -61,37 +62,61 @@ defmodule Chat.Proxy.Worker do
 
   @impl true
   def init(socket) do
-    {:ok, socket}
+    {:ok, {socket, Map.new()}}
   end
+
+  # TODO: logout when terminating
 
   # Accept the data through the socket as they are delivered to the mailbox
   # with the :tcp atom (hybrid tcp server)
   @impl true
-  def handle_info({:tcp, socket, data}, socket) do
-    :inet.setopts(socket, active: :once)
+  def handle_info({:tcp, socket, data}, state) do
+    :inet.setopts(socket, active: :once) # reset hybrid activation
     Logger.info("Proxy(#{inspect(self())}) received: #{inspect(data)}")
-    process_data(data, socket)
-    {:noreply, socket}
+    process_data(data, state)
+    {:noreply, state}
   end
 
   # Handles the closing of the tcp connection
   @impl true
-  def handle_info({:tcp_closed, socket}, socket) do
+  def handle_info({:tcp_closed, socket}, state) do
     :gen_tcp.close(socket)
-    {:stop, :normal, socket}
+    Logger.info("Proxy(#{inspect(self())}) closing")
+    {:stop, :normal, state}
   end
 
   # Handles receiving the msg from another user
   @impl true
-  def handle_info({:msg, msg}, socket) do
+  def handle_info({:msg, msg}, {socket, _} = state) do
     :inet.setopts(socket, active: :once)
     :gen_tcp.send(socket, msg <> "\n")
-    {:noreply, socket}
+    {:noreply, state}
+  end
+
+  # Handles adding groups
+  @impl true
+  def handle_info({:grp, group_name, user_lst}, {socket, group_map} = state) do
+    if not Regex.match?(~r/^#[a-zA-Z][a-zA-Z0-9_]{0,9}$/, group_name) do
+      err_msg =
+        """
+        Invalid group name.
+        Must start with hash (#), then a letter, include only alphanumeric chars and underscores,
+        and have a max length of 11 (including the hash (#)).
+        """
+      Logger.alert("Proxy worker(pid(#{inspect(self())})): #{err_msg}")
+      :gen_tcp.send(socket, err_msg <> "\n")
+      {:noreply, state}
+    else
+      res = "Group \#{group_name} added."
+      Logger.info("Proxy worker(pid(#{inspect(self())})): #{res}")
+      :gen_tcp.send(socket, res)
+      {:noreply, {socket, Map.put(group_map, group_name, user_lst)}}
+    end
   end
 
   # * HELPER FUNCTIONS & HANDLERS
 
-  defp process_data(data, socket) do
+  defp process_data(data, {socket, group_map}) do
     parts = String.split(data, ~r/\s+/, parts: 3, trim: true)
     cmd = Enum.at(parts, 0, "")
     arg1 = Enum.at(parts, 1)
@@ -104,10 +129,11 @@ defmodule Chat.Proxy.Worker do
         handle_lst(socket)
       Regex.match?(~r/^\/MSG$/i, cmd) && length(parts) > 2 ->
         dest_lst = String.split(arg1, ",", trim: true)
-        handle_msg(socket, dest_lst, arg2)
+        handle_msg(socket, group_map, dest_lst, arg2)
       Regex.match?(~r/^\/GRP$/i, cmd) && length(parts) > 2 ->
         user_lst = String.split(arg2, ",", trim: true)
-        handle_grp(socket, arg1, user_lst)
+        # Send msg because we need to update the full state
+        send(self(), {:grp, arg1, user_lst})
       true ->
         err_msg = "Bad request - Invalid or missing command or argument(s): #{data}"
         Logger.alert("Proxy worker(pid(#{inspect(self())})): #{err_msg}")
@@ -127,32 +153,33 @@ defmodule Chat.Proxy.Worker do
     :gen_tcp.send(socket, "Users: #{users}" <> "\n")
   end
 
-  defp handle_msg(_socket, [], _msg), do: :ok
+  defp handle_msg(_socket, _group_map, [], _msg), do: :ok
 
-  defp handle_msg(socket, [dest | t], msg) do
-    handle_msg(socket, dest, msg)
-    handle_msg(socket, t, msg)
+  defp handle_msg(socket, group_map, [dest | t], msg) do
+    handle_msg(socket, group_map, dest, msg)
+    handle_msg(socket, group_map, t, msg)
   end
 
-  defp handle_msg(socket, dest, msg) do
-    cond do
-      group?(dest) ->
-        # TODO
-        :ok
-      true ->
-        case Chat.Server.msg(dest, msg) do
-          :ok -> :gen_tcp.send(socket, "Sent!" <> "\n")
-          {:error, err_msg} -> :gen_tcp.send(socket, "Error sending to #{dest}: #{err_msg}" <> "\n")
-        end
+  defp handle_msg(socket, group_map, dest, msg) do
+    if group?(dest) do
+      case Map.fetch(group_map, dest) do
+        {:ok, nick_list} -> handle_msg(socket, group_map, nick_list, msg)
+        _ ->
+          err_msg = "#{dest} group was not found."
+          Logger.info("Proxy worker(pid(#{inspect(self())})): #{err_msg}")
+          :gen_tcp.send(socket, err_msg <> "\n")
+      end
+    else
+      case Chat.Server.msg(dest, msg) do
+        :ok -> :gen_tcp.send(socket, "Sent!" <> "\n")
+        {:error, err_msg} ->
+          :gen_tcp.send(socket, "Error sending to #{dest}: #{String.trim(err_msg)}" <> "\n")
+      end
     end
   end
 
-  defp handle_grp(socket, group, users) do
-    #TODO
-  end
-
   defp group?(dest) do
-    false
+    Regex.match?(~r/^#[a-zA-Z][a-zA-Z0-9_]{0,9}$/, dest)
   end
 
 end
