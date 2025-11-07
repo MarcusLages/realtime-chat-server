@@ -71,7 +71,7 @@ defmodule Chat.Proxy.Worker do
   def handle_info({:tcp, socket, data}, socket) do
     :inet.setopts(socket, active: :once)
     Logger.info("Proxy(#{inspect(self())}) received: #{inspect(data)}")
-    # TODO: process data
+    process_data(data, socket)
     {:noreply, socket}
   end
 
@@ -80,6 +80,64 @@ defmodule Chat.Proxy.Worker do
   def handle_info({:tcp_closed, socket}, socket) do
     :gen_tcp.close(socket)
     {:stop, :normal, socket}
+  end
+
+  # * HELPER FUNCTIONS & HANDLERS
+
+  defp process_data(data, socket) do
+    case String.split(data, ~r/\s+/, parts: 3, trim: true) do
+      ["/NCK", nick | _] -> handle_nck(socket, nick)
+      ["/LST" | _] -> handle_lst(socket)
+      ["/MSG", dest, msg] ->
+        dest_lst = String.split(dest, ",", trim: true)
+        handle_msg(socket, dest_lst, msg)
+      ["/GRP", group, users] ->
+        user_lst = String.split(users, ",", trim: true)
+        handle_grp(socket, group, user_lst)
+      _ ->
+        err_msg = "Bad request - Invalid or missing command or argument(s): #{data}"
+        Logger.alert("Proxy worker(pid(#{inspect(self())})): #{err_msg}")
+        :gen_tcp.send(socket, err_msg)
+    end
+  end
+
+  defp handle_nck(socket, nick) do
+    case Chat.Server.nck(nick) do
+      :ok -> :gen_tcp.send("Nickname (nick) registered!")
+      {:error, err_msg} -> :gen_tcp.send(err_msg)
+    end
+  end
+
+  defp handle_lst(socket) do
+    users = Enum.join(Chat.Server.lst(), ", ")
+    :gen_tcp.send("Users: #{users}")
+  end
+
+  defp handle_msg(socket, [], msg) do :ok end
+
+  defp handle_msg(socket, [dest | t], msg) do
+    handle_msg(socket, dest, msg)
+    handle_msg(socket, t, msg)
+  end
+
+  defp handle_msg(socket, dest, msg) when group?(dest) do
+    # TODO
+  end
+
+  defp handle_msg(socket, dest, msg) do
+    case Chat.Server.msg(dest, msg) do
+      :ok -> :gen_tcp.send("Sent!")
+      {:error, err_msg} -> :gen_tcp.send("Error sending to #{dest}: #{err_msg}")
+    end
+  end
+
+  defp handle_grp(socket, group, users) do
+    #TODO
+  end
+
+  defp group?(socket, dest) do
+    # TODO
+    false
   end
 
 end
