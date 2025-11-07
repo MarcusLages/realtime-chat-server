@@ -103,31 +103,33 @@ defmodule Chat.Proxy.Worker do
 
   defp handle_nck(socket, nick) do
     case Chat.Server.nck(nick) do
-      :ok -> :gen_tcp.send("Nickname (nick) registered!")
-      {:error, err_msg} -> :gen_tcp.send(err_msg)
+      :ok -> :gen_tcp.send(socket, "Nickname #{nick} registered!")
+      {:error, err_msg} -> :gen_tcp.send(socket, err_msg)
     end
   end
 
   defp handle_lst(socket) do
     users = Enum.join(Chat.Server.lst(), ", ")
-    :gen_tcp.send("Users: #{users}")
+    :gen_tcp.send(socket, "Users: #{users}")
   end
 
-  defp handle_msg(socket, [], msg) do :ok end
+  defp handle_msg(_socket, [], _msg), do: :ok
 
   defp handle_msg(socket, [dest | t], msg) do
     handle_msg(socket, dest, msg)
     handle_msg(socket, t, msg)
   end
 
-  defp handle_msg(socket, dest, msg) when group?(dest) do
-    # TODO
-  end
-
   defp handle_msg(socket, dest, msg) do
-    case Chat.Server.msg(dest, msg) do
-      :ok -> :gen_tcp.send("Sent!")
-      {:error, err_msg} -> :gen_tcp.send("Error sending to #{dest}: #{err_msg}")
+    cond do
+      group?(dest) ->
+        # TODO
+        :ok
+      true ->
+        case Chat.Server.msg(dest, msg) do
+          :ok -> :gen_tcp.send(socket, "Sent!")
+          {:error, err_msg} -> :gen_tcp.send(socket, "Error sending to #{dest}: #{err_msg}")
+        end
     end
   end
 
@@ -135,8 +137,7 @@ defmodule Chat.Proxy.Worker do
     #TODO
   end
 
-  defp group?(socket, dest) do
-    # TODO
+  defp group?(dest) do
     false
   end
 

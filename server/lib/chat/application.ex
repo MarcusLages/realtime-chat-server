@@ -10,7 +10,8 @@ defmodule Chat.Application do
     children = [
       # Starts a worker by calling: Chat.Worker.start_link(arg)
       # {Chat.Worker, arg}
-      {Chat.Server, name: {:global, Chat.Server}}
+      {Chat.Server, name: {:global, Chat.Server}},
+      {Chat.Proxy, 6666}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
