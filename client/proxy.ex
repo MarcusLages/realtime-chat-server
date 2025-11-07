@@ -120,7 +120,7 @@ defmodule Chat.Proxy.Worker do
   # * HELPER FUNCTIONS & HANDLERS
 
   defp process_data(data, {socket, group_map}) do
-    parts = String.split(data, ~r/\s+/, parts: 3, trim: true)
+    parts = data |> String.trim |> String.split(~r/\s+/, parts: 3, trim: true)
     cmd = Enum.at(parts, 0, "")
     arg1 = Enum.at(parts, 1)
     arg2 = Enum.at(parts, 2)
