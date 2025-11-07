@@ -28,6 +28,10 @@ defmodule Chat.Server do
     GenServer.call(@name, :lst)
   end
 
+  def logout() do
+    GenServer.cast(@name, {:logout, self()})
+  end
+
   #* /NCK
   @impl true
   def handle_call({:nck, nick}, {from_pid, _}, nick_pid_map) do
@@ -46,6 +50,9 @@ defmodule Chat.Server do
         {:ok, pid} when pid !== from_pid ->
           res = {:error, "Nickname already exists"}
           {:reply, res, nick_pid_map}
+        {:ok, ^from_pid} ->
+          new_map = Map.put(nick_pid_map, nick, from_pid)
+          {:reply, :ok, new_map}
         _ ->
           new_map = nick_pid_map
             |> Map.filter(fn {_, pid} -> pid !== from_pid end)
@@ -57,11 +64,11 @@ defmodule Chat.Server do
 
   #* /MSG
   @impl true
-  def handle_call({:msg, dest, msg}, {from_pid, _}, nick_pid_map) do
+  def handle_call({:msg, dest_nick, msg}, {from_pid, _}, nick_pid_map) do
     # Find nick from pid of msg sender
     case Enum.find(nick_pid_map, fn {_, pid} -> pid === from_pid end) do
       {nick, ^from_pid} ->
-        case Map.fetch(nick_pid_map, dest) do
+        case Map.fetch(nick_pid_map, dest_nick) do
           {:ok, dest_pid} ->
             send(dest_pid, nick <> ": " <> msg) # Send msg to dest
             {:reply, :ok, nick_pid_map}
@@ -79,6 +86,12 @@ defmodule Chat.Server do
   @impl true
   def handle_call(:lst, _from, nick_pid_map) do
     {:reply, Map.keys(nick_pid_map), nick_pid_map}
+  end
+
+  #* logout
+  @impl true
+  def handle_cast({:logout, logout_pid}, nick_pid_map) do
+    {:noreply, Map.filter(nick_pid_map, fn {_, v_pid} -> v_pid !== logout_pid end)}
   end
 
   @impl true
