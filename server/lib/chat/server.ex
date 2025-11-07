@@ -1,4 +1,14 @@
 defmodule Chat.Server do
+  @moduledoc """
+  Module used to create a globally registered Chat server.
+
+  The state being passed is a nick_pid_map.
+  @type nick_pid_map :: %{String.t() => pid()}
+
+  A bidirectional map would have been more time efficient for search from
+  pid to nick, but since I am not expecting many users, this is ok.
+  """
+
   use GenServer
   @name {:global, __MODULE__}
 
@@ -31,27 +41,29 @@ defmodule Chat.Server do
       }
       {:reply, res, nick_pid_map}
     else
+      # Check if nick is taken to decide if it's error, new user or rename user
       case Map.fetch(nick_pid_map, nick) do
-        {:ok, pid} when pid != from_pid ->
+        {:ok, pid} when pid !== from_pid ->
           res = {:error, "Nickname already exists"}
           {:reply, res, nick_pid_map}
         _ ->
           new_map = nick_pid_map
-            |> Map.filter(fn {_, v_pid} -> v_pid != from_pid end)
+            |> Map.filter(fn {_, pid} -> pid !== from_pid end)
             |> Map.put(nick, from_pid)
           {:reply, :ok, new_map}
       end
     end
   end
 
-  # * /MSG
+  #* /MSG
   @impl true
   def handle_call({:msg, dest, msg}, {from_pid, _}, nick_pid_map) do
-    case Enum.find(nick_pid_map, fn {_, v} -> v === from_pid end) do
+    # Find nick from pid of msg sender
+    case Enum.find(nick_pid_map, fn {_, pid} -> pid === from_pid end) do
       {nick, ^from_pid} ->
         case Map.fetch(nick_pid_map, dest) do
           {:ok, dest_pid} ->
-            send(dest_pid, nick <> ": " <> msg)
+            send(dest_pid, nick <> ": " <> msg) # Send msg to dest
             {:reply, :ok, nick_pid_map}
           _ ->
             res = {:error, "Destination nickname not found"}
