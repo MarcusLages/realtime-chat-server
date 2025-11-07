@@ -7,10 +7,9 @@ defmodule Chat.Proxy do
   """
   require Logger
   use GenServer
-  @name {:global, __MODULE__}
 
   def start_link(port \\ 6666) do
-    GenServer.start_link(__MODULE__, port, name: @name)
+    GenServer.start_link(__MODULE__, port)
   end
 
   # Start listening socket at "port"
