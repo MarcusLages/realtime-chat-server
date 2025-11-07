@@ -1,4 +1,5 @@
 defmodule Chat.Proxy do
+  require Logger
   use GenServer
   @name {:global, __MODULE__}
 
@@ -12,12 +13,12 @@ defmodule Chat.Proxy do
     # Start main socket at "port"
     case :gen_tcp.listen(port, opts) do
       {:ok, listen_socket} ->
-        IO.inspect("Starting proxy server at port #{port}")
-        :inet.setopts(listen_socket, active: once) # reset active tcp
+        Logger.info("Starting proxy server at port #{port}")
+        :inet.setopts(listen_socket, active: :once) # reset active tcp
         send(self(), :accept)
         {:ok, listen_socket}
       {:error, reason} ->
-        IO.inspect("Error starting proxy.\nReason: #{inspect(reason)}")
+        Logger.info("Error starting proxy.\nReason: #{inspect(reason)}")
         {:stop, reason}
     end
   end
@@ -28,11 +29,11 @@ defmodule Chat.Proxy do
       {:ok, socket} ->
         {:ok, pid} = Chat.Proxy.Worker.start_link(socket)
         :gen_tcp.controlling_process(socket, pid)
-        IO.inspect("Starting proxy worker(pid(#{inspect(pid)})) for socket.")
+        Logger.info("Starting proxy worker(pid(#{inspect(pid)})) for socket.")
         send(self(), :accept)
         {:noreply, listen_socket}
       {:error, reason} ->
-        IO.inspect("Error handling accepting socket.\nReason: #{inspect(reason)}")
+        Logger.info("Error handling accepting socket.\nReason: #{inspect(reason)}")
         {:stop, reason, listen_socket}
     end
   end
@@ -56,7 +57,7 @@ defmodule Chat.Proxy.Worker do
   @impl true
   def handle_info({:tcp, socket, data}, socket) do
     :inet.setopts(socket, active: :once)
-    IO.inspect("Proxy(#{inspect(self())}) received: #{inspect(data)}")
+    Logger.info("Proxy(#{inspect(self())}) received: #{inspect(data)}")
     # TODO: process data
     {:noreply, socket}
   end

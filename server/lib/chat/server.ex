@@ -8,6 +8,7 @@ defmodule Chat.Server do
   A bidirectional map would have been more time efficient for search from
   pid to nick, but since I am not expecting many users, this is ok.
   """
+  require Logger
 
   use GenServer
   @name {:global, __MODULE__}
@@ -52,7 +53,7 @@ defmodule Chat.Server do
           res = {:error, "Nickname already exists"}
           {:reply, res, nick_pid_map}
         _ ->
-          IO.inspect("[INFO] User '#{nick}' was added to the chat.")
+          Logger.info("User '#{nick}' was added to the chat.")
           new_map = nick_pid_map
             |> Map.filter(fn {_, pid} -> pid !== from_pid end)
             |> Map.put(nick, from_pid)
@@ -69,7 +70,7 @@ defmodule Chat.Server do
       {src_nick, ^from_pid} ->
         case Map.fetch(nick_pid_map, dest_nick) do
           {:ok, dest_pid} ->
-            IO.inspect("[INFO] Sending msg from #{src_nick} to #{dest_nick}.")
+            Logger.info("Sending msg from #{src_nick} to #{dest_nick}.")
             send(dest_pid, "#{src_nick}: #{msg}") # Send msg to dest
             {:reply, :ok, nick_pid_map}
           _ ->
@@ -91,7 +92,7 @@ defmodule Chat.Server do
   #* logout
   @impl true
   def handle_cast({:logout, logout_pid}, nick_pid_map) do
-    IO.inspect("[INFO] Logging out pid(#{inspect(logout_pid)}).")
+    Logger.info("Logging out pid(#{inspect(logout_pid)}).")
     {:noreply, Map.filter(nick_pid_map, fn {_, v_pid} -> v_pid !== logout_pid end)}
   end
 
@@ -99,17 +100,17 @@ defmodule Chat.Server do
   def init(_) do
     case :ets.lookup(@store, @name) do
       [] ->
-        IO.inspect("[INFO] Chat.Server starting.")
+        Logger.info("Chat.Server starting.")
         {:ok, Map.new()}
       [{_, prev_state}] ->
-        IO.inspect("[INFO] Chat.Server REstarting.")
+        Logger.info("Chat.Server REstarting.")
         {:ok, prev_state}
     end
   end
 
   @impl true
   def terminate(_reason, state) do
-    IO.inspect("[INFO] Chat.Server terminating.")
+    Logger.info("Chat.Server terminating.")
     :ets.insert(@store, {@name, state}) # global name as key
   end
 
