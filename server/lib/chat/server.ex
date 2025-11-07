@@ -51,10 +51,8 @@ defmodule Chat.Server do
         {:ok, pid} when pid !== from_pid ->
           res = {:error, "Nickname already exists"}
           {:reply, res, nick_pid_map}
-        {:ok, ^from_pid} ->
-          new_map = Map.put(nick_pid_map, nick, from_pid)
-          {:reply, :ok, new_map}
         _ ->
+          IO.inspect("[INFO] User '#{nick}' was added to the chat.")
           new_map = nick_pid_map
             |> Map.filter(fn {_, pid} -> pid !== from_pid end)
             |> Map.put(nick, from_pid)
@@ -68,10 +66,11 @@ defmodule Chat.Server do
   def handle_call({:msg, dest_nick, msg}, {from_pid, _}, nick_pid_map) do
     # Find nick from pid of msg sender
     case Enum.find(nick_pid_map, fn {_, pid} -> pid === from_pid end) do
-      {nick, ^from_pid} ->
+      {src_nick, ^from_pid} ->
         case Map.fetch(nick_pid_map, dest_nick) do
           {:ok, dest_pid} ->
-            send(dest_pid, nick <> ": " <> msg) # Send msg to dest
+            IO.inspect("[INFO] Sending msg from #{src_nick} to #{dest_nick}.")
+            send(dest_pid, "#{src_nick}: #{msg}") # Send msg to dest
             {:reply, :ok, nick_pid_map}
           _ ->
             res = {:error, "Destination nickname not found"}
@@ -92,14 +91,19 @@ defmodule Chat.Server do
   #* logout
   @impl true
   def handle_cast({:logout, logout_pid}, nick_pid_map) do
+    IO.inspect("[INFO] Logging out pid(#{inspect(logout_pid)}).")
     {:noreply, Map.filter(nick_pid_map, fn {_, v_pid} -> v_pid !== logout_pid end)}
   end
 
   @impl true
   def init(_) do
     case :ets.lookup(@store, @name) do
-      [] -> {:ok, Map.new()}
-      [prev_state] -> {:ok, prev_state}
+      [] ->
+        IO.inspect("[INFO] Chat.Server starting.")
+        {:ok, Map.new()}
+      [{_, prev_state}] ->
+        IO.inspect("[INFO] Chat.Server REstarting.")
+        {:ok, prev_state}
     end
   end
 
