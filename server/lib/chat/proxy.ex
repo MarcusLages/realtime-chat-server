@@ -131,10 +131,12 @@ defmodule Chat.Proxy.Worker do
       Regex.match?(~r/^\/LST$/i, cmd) ->
         handle_lst(socket)
       Regex.match?(~r/^\/MSG$/i, cmd) && length(parts) > 2 ->
-        dest_lst = String.split(arg1, ",", trim: true)
+        dest_lst = arg1 |> String.trim |> String.split(",", trim: true)
+        Logger.info("Proxy worker(pid(#{inspect(self())})): Dest=#{inspect(dest_lst)}")
         handle_msg(socket, group_map, dest_lst, arg2)
       Regex.match?(~r/^\/GRP$/i, cmd) && length(parts) > 2 ->
-        user_lst = String.split(arg2, ",", trim: true)
+        user_lst = arg2 |> String.trim |> String.split(",", trim: true)
+        Logger.info("Proxy worker(pid(#{inspect(self())})): Nicks=#{inspect(user_lst)}")
         # Send msg because we need to update the full state
         send(self(), {:grp, arg1, user_lst})
       true ->
