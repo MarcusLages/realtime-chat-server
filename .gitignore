@@ -21,3 +21,6 @@ chat-*.tar
 
 # Temporary files, for example, from tests.
 server/tmp
+
+# Beam compiled files
+*.beam

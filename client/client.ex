@@ -8,6 +8,10 @@ defmodule Chat.Client do
 
     IO.inspect("Connected to #{host}:#{port}")
 
+    parent = self()
+    spawn(fn -> read_from_socket(socket, parent) end)
+    spawn(fn -> read_from_keyboard(parent) end)
+
     loop(socket)
     :gen_tcp.close(socket)
   end
@@ -21,37 +25,49 @@ defmodule Chat.Client do
   end
 
   defp loop(socket) do
+    receive do
+      {:socket, msg} ->
+        IO.write("\r")
+        IO.puts(String.trim(msg))
+        IO.write("> ")
+        loop(socket)
+
+      {:keyboard, msg} ->
+        :gen_tcp.send(socket, String.trim(msg) <> "\n")
+        loop(socket)
+
+      {:closed, :socket} ->
+        IO.puts("Server closed connection")
+
+      {:closed, :keyboard} ->
+        IO.puts("Keyboard closed")
+    end
+  end
+
+  defp read_from_socket(socket, parent) do
+    case :gen_tcp.recv(socket, 0) do
+      {:ok, data} ->
+        send(parent, {:socket, data})
+        read_from_socket(socket, parent)
+
+      {:error, :closed} ->
+        send(parent, {:closed, :socket})
+    end
+  end
+
+  defp read_from_keyboard(parent) do
     IO.write("> ")
     case IO.gets("") do
       :eof ->
-        :ok
+        send(parent, {:closed, :keyboard})
+        # read_from_keyboard(parent)
       line ->
-        case String.trim(line) do
-          "" ->
-            # Do one last check before looping
-            # recv(socket, packet_size, timeout_ms)
-            case :gen_tcp.recv(socket, 0, 0) do
-              {:ok, data} ->
-                IO.puts(String.trim(data))
-                loop(socket)
-              _ ->
-                loop(socket)
-            end
-          trimmed_line ->
-            :ok = :gen_tcp.send(socket, trimmed_line <> "\n")
-
-            # 0 = receives all bytes
-            case :gen_tcp.recv(socket, 0) do
-              {:ok, data} ->
-                IO.puts(String.trim(data))
-                loop(socket)
-
-              {:error, :closed} ->
-                IO.puts("Server closed the connection")
-            end
-        end
+        trimmed = String.trim(line)
+        if trimmed != "", do: send(parent, {:keyboard, trimmed})
+        read_from_keyboard(parent)
     end
   end
+
 end
 
 Chat.Client.main(System.argv())
