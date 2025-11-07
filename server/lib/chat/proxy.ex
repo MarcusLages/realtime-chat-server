@@ -65,7 +65,10 @@ defmodule Chat.Proxy.Worker do
     {:ok, {socket, Map.new()}}
   end
 
-  # TODO: logout when terminating
+  @impl true
+  def terminate(_reason, _state) do
+    Chat.Server.logout()
+  end
 
   # Accept the data through the socket as they are delivered to the mailbox
   # with the :tcp atom (hybrid tcp server)
