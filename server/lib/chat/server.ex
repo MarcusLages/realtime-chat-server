@@ -109,7 +109,8 @@ defmodule Chat.Server do
 
   @impl true
   def terminate(_reason, state) do
-    :ets.insert(@store, state)
+    IO.inspect("[INFO] Chat.Server terminating.")
+    :ets.insert(@store, {@name, state}) # global name as key
   end
 
 end
