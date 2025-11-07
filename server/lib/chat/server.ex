@@ -11,6 +11,7 @@ defmodule Chat.Server do
 
   use GenServer
   @name {:global, __MODULE__}
+  @store Chat.Store
 
   def start_link(_) do
     GenServer.start_link(__MODULE__, nil, name: @name)
@@ -96,7 +97,15 @@ defmodule Chat.Server do
 
   @impl true
   def init(_) do
-    {:ok, Map.new()}
+    case :ets.lookup(@store, @name) do
+      [] -> {:ok, Map.new()}
+      [prev_state] -> {:ok, prev_state}
+    end
+  end
+
+  @impl true
+  def terminate(_reason, state) do
+    :ets.insert(@store, state)
   end
 
 end
