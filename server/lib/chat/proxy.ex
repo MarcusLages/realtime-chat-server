@@ -82,6 +82,14 @@ defmodule Chat.Proxy.Worker do
     {:stop, :normal, socket}
   end
 
+  # Handles receiving the msg from another user
+  @impl true
+  def handle_info({:msg, msg}, socket) do
+    :inet.setopts(socket, active: :once)
+    :gen_tcp.send(socket, msg <> "\n")
+    {:noreply, socket}
+  end
+
   # * HELPER FUNCTIONS & HANDLERS
 
   defp process_data(data, socket) do
