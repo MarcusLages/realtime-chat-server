@@ -110,7 +110,7 @@ defmodule Chat.Proxy.Worker do
       :gen_tcp.send(socket, err_msg <> "\n")
       {:noreply, state}
     else
-      res = "Group \#{group_name} added."
+      res = "Group #{group_name} added."
       Logger.info("Proxy worker(pid(#{inspect(self())})): #{res}")
       :gen_tcp.send(socket, res)
       {:noreply, {socket, Map.put(group_map, group_name, user_lst)}}
