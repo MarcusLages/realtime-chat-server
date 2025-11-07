@@ -7,6 +7,8 @@ defmodule Chat.Server do
 
   A bidirectional map would have been more time efficient for search from
   pid to nick, but since I am not expecting many users, this is ok.
+
+  Messages are sent to the mailbox of each process as {:msg, content}
   """
   require Logger
 
@@ -71,7 +73,7 @@ defmodule Chat.Server do
         case Map.fetch(nick_pid_map, dest_nick) do
           {:ok, dest_pid} ->
             Logger.info("Sending msg from #{src_nick} to #{dest_nick}.")
-            send(dest_pid, "#{src_nick}: #{msg}") # Send msg to dest
+            send(dest_pid, {:msg, "#{src_nick}: #{msg}"})
             {:reply, :ok, nick_pid_map}
           _ ->
             res = {:error, "Destination nickname not found"}
