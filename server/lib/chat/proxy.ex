@@ -92,16 +92,23 @@ defmodule Chat.Proxy.Worker do
   # * HELPER FUNCTIONS & HANDLERS
 
   defp process_data(data, socket) do
-    case String.split(data, ~r/\s+/, parts: 3, trim: true) do
-      ["/NCK", nick | _] -> handle_nck(socket, nick)
-      ["/LST" | _] -> handle_lst(socket)
-      ["/MSG", dest, msg] ->
-        dest_lst = String.split(dest, ",", trim: true)
-        handle_msg(socket, dest_lst, msg)
-      ["/GRP", group, users] ->
-        user_lst = String.split(users, ",", trim: true)
-        handle_grp(socket, group, user_lst)
-      _ ->
+    parts = String.split(data, ~r/\s+/, parts: 3, trim: true)
+    cmd = Enum.at(parts, 0, "")
+    arg1 = Enum.at(parts, 1)
+    arg2 = Enum.at(parts, 2)
+
+    cond do
+      Regex.match?(~r/^\/NCK$/i, cmd) && length(parts) > 1 ->
+        handle_nck(socket, arg1)
+      Regex.match?(~r/^\/LST$/i, cmd) ->
+        handle_lst(socket)
+      Regex.match?(~r/^\/MSG$/i, cmd) && length(parts) > 2 ->
+        dest_lst = String.split(arg1, ",", trim: true)
+        handle_msg(socket, dest_lst, arg2)
+      Regex.match?(~r/^\/GRP$/i, cmd) && length(parts) > 2 ->
+        user_lst = String.split(arg2, ",", trim: true)
+        handle_grp(socket, arg1, user_lst)
+      true ->
         err_msg = "Bad request - Invalid or missing command or argument(s): #{data}"
         Logger.alert("Proxy worker(pid(#{inspect(self())})): #{err_msg}")
         :gen_tcp.send(socket, err_msg <> "\n")
