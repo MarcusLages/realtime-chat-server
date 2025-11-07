@@ -105,20 +105,20 @@ defmodule Chat.Proxy.Worker do
       _ ->
         err_msg = "Bad request - Invalid or missing command or argument(s): #{data}"
         Logger.alert("Proxy worker(pid(#{inspect(self())})): #{err_msg}")
-        :gen_tcp.send(socket, err_msg)
+        :gen_tcp.send(socket, err_msg <> "\n")
     end
   end
 
   defp handle_nck(socket, nick) do
     case Chat.Server.nck(nick) do
-      :ok -> :gen_tcp.send(socket, "Nickname #{nick} registered!")
-      {:error, err_msg} -> :gen_tcp.send(socket, err_msg)
+      :ok -> :gen_tcp.send(socket, "Nickname #{nick} registered!" <> "\n")
+      {:error, err_msg} -> :gen_tcp.send(socket, err_msg <> "\n")
     end
   end
 
   defp handle_lst(socket) do
     users = Enum.join(Chat.Server.lst(), ", ")
-    :gen_tcp.send(socket, "Users: #{users}")
+    :gen_tcp.send(socket, "Users: #{users}" <> "\n")
   end
 
   defp handle_msg(_socket, [], _msg), do: :ok
@@ -135,8 +135,8 @@ defmodule Chat.Proxy.Worker do
         :ok
       true ->
         case Chat.Server.msg(dest, msg) do
-          :ok -> :gen_tcp.send(socket, "Sent!")
-          {:error, err_msg} -> :gen_tcp.send(socket, "Error sending to #{dest}: #{err_msg}")
+          :ok -> :gen_tcp.send(socket, "Sent!" <> "\n")
+          {:error, err_msg} -> :gen_tcp.send(socket, "Error sending to #{dest}: #{err_msg}" <> "\n")
         end
     end
   end

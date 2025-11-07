@@ -26,17 +26,29 @@ defmodule Chat.Client do
       :eof ->
         :ok
       line ->
-        line = String.trim(line)
-        :ok = :gen_tcp.send(socket, line <> "\n")
+        case String.trim(line) do
+          "" ->
+            # Do one last check before looping
+            # recv(socket, packet_size, timeout_ms)
+            case :gen_tcp.recv(socket, 0, 0) do
+              {:ok, data} ->
+                IO.puts(String.trim(data))
+                loop(socket)
+              _ ->
+                loop(socket)
+            end
+          trimmed_line ->
+            :ok = :gen_tcp.send(socket, trimmed_line <> "\n")
 
-        # 0 = send all bytes
-        case :gen_tcp.recv(socket, 0) do
-          {:ok, data} ->
-            IO.puts(String.trim(data))
-            loop(socket)
+            # 0 = receives all bytes
+            case :gen_tcp.recv(socket, 0) do
+              {:ok, data} ->
+                IO.puts(String.trim(data))
+                loop(socket)
 
-          {:error, :closed} ->
-            IO.puts("Server closed the connection")
+              {:error, :closed} ->
+                IO.puts("Server closed the connection")
+            end
         end
     end
   end
