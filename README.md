@@ -6,10 +6,10 @@ This is a raw TCP socket-based chat server implementation in Elixir that enables
 ```bash
 realtime-chat-server-go/
 ├── client/            # Client-side shell code
-├── server/            
-│	└── lib
-│		└── chat       # Main server implementation
-└── assignment1.pdf    # Project documentation from assignment
+└── server/            
+	└── lib/
+		└── chat/       # Main server implementation
+
 ```
 ## Running the Project
 1. Run the mix app in the `/server` folder using a named, distributed and supervised iex shell.
