@@ -1,7 +1,7 @@
 # Realtime Chat Server
 A real-time chat application built with Elixir, supporting one chat room and multiple concurrent users.
 ## Overview
-This is a raw TCP socket-based chat server implementation in Elixir that enables real-time communication between multiple clients across different chat rooms.
+This is a raw TCP socket-based chat server implementation in Elixir that enables real-time communication between multiple clients across the same chat room.
 ## Project Structure
 ```bash
 realtime-chat-server-go/
