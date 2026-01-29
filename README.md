@@ -44,4 +44,4 @@ Sends the same message to all recipients. You can have multiple target recipient
 ##### `/GRP <groupname> <users>` 
 Creates a group with all the users. Whenever a message is sent to a group, the message will be broadcasted to all the users in that group. The group name must start with hash (`#`). To add multiple users, separate them by comma similarly to the `/MSG` command.
 ## Extra Notes
-Access the Go version: [MarcusLages/realtime-chat-server](https://github.com/MarcusLages/realtime-chat-server-go)
+Access the Go version: [MarcusLages/realtime-chat-server-go](https://github.com/MarcusLages/realtime-chat-server-go)
